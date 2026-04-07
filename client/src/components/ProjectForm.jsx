@@ -1,6 +1,17 @@
 import { useState } from 'react';
 
-const EMPTY_FORM = { title: '', description: '', tech_tags: '', project_category: '', github_url: '', site_url: '', thumbnailFile: null };
+const APP_TYPE_OPTIONS = ['Code Apps', 'Model-Driven Apps', 'Canvas Apps'];
+
+const EMPTY_FORM = {
+  title: '',
+  description: '',
+  app_type: 'Code Apps',
+  tech_tags: '',
+  project_category: '',
+  github_url: '',
+  site_url: '',
+  thumbnailFile: null,
+};
 
 export default function ProjectForm({ project, onSave, onClose }) {
   const [form, setForm] = useState(
@@ -8,6 +19,7 @@ export default function ProjectForm({ project, onSave, onClose }) {
       ? {
           title: project.title,
           description: project.description,
+          app_type: project.app_type || 'Code Apps',
           tech_tags: project.tech_tags,
           project_category: project.project_category || '',
           github_url: project.github_url || '',
@@ -43,6 +55,7 @@ export default function ProjectForm({ project, onSave, onClose }) {
     const formData = new FormData();
     formData.append('title', form.title);
     formData.append('description', form.description);
+    formData.append('app_type', form.app_type);
     formData.append('tech_tags', form.tech_tags);
     formData.append('project_category', form.project_category);
     formData.append('github_url', form.github_url);
@@ -95,6 +108,21 @@ export default function ProjectForm({ project, onSave, onClose }) {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Field label="Title" name="title" value={form.title} onChange={handleChange} required />
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">App Type</label>
+            <select
+              name="app_type"
+              value={form.app_type}
+              onChange={handleChange}
+              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {APP_TYPE_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
           <Field
             label="Project Category"
             name="project_category"

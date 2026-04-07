@@ -4,6 +4,7 @@ const { getPool, sql } = require('../db/connection');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
+const VALID_APP_TYPES = new Set(['Code Apps', 'Model-Driven Apps', 'Canvas Apps']);
 
 // Memory storage — store uploaded file buffer directly in the DB
 const upload = multer({
@@ -22,7 +23,7 @@ router.get('/', async (req, res) => {
   try {
     const pool = await getPool();
     const result = await pool.request().query(
-      `SELECT id, title, description, tech_tags, project_category, github_url, site_url,
+      `SELECT id, title, description, app_type, tech_tags, project_category, github_url, site_url,
               CASE WHEN thumbnail_image IS NOT NULL THEN 1 ELSE 0 END AS has_image,
               created_at,
               updated_at
@@ -62,10 +63,13 @@ router.get('/:id/image', async (req, res) => {
 
 // POST /api/projects — admin only
 router.post('/', authMiddleware, upload.single('thumbnail'), async (req, res) => {
-  const { title, description, tech_tags, project_category, github_url, site_url } = req.body;
+  const { title, description, app_type, tech_tags, project_category, github_url, site_url } = req.body;
 
   if (!title || !description) {
     return res.status(400).json({ error: 'title and description are required' });
+  }
+  if (!VALID_APP_TYPES.has(app_type)) {
+    return res.status(400).json({ error: 'app_type must be Code Apps, Model-Driven Apps, or Canvas Apps' });
   }
 
   try {
@@ -74,6 +78,7 @@ router.post('/', authMiddleware, upload.single('thumbnail'), async (req, res) =>
       .request()
       .input('title', sql.NVarChar(200), title)
       .input('description', sql.NVarChar(sql.MAX), description)
+      .input('app_type', sql.NVarChar(50), app_type)
       .input('tech_tags', sql.NVarChar(500), tech_tags || '')
       .input('project_category', sql.NVarChar(100), project_category || null)
       .input('github_url', sql.NVarChar(500), github_url || null)
@@ -82,11 +87,11 @@ router.post('/', authMiddleware, upload.single('thumbnail'), async (req, res) =>
       .input('thumbnail_mime', sql.NVarChar(100), req.file ? req.file.mimetype : null);
 
     const result = await request.query(
-      `INSERT INTO projects (title, description, tech_tags, project_category, github_url, site_url, thumbnail_image, thumbnail_mime)
-       OUTPUT INSERTED.id, INSERTED.title, INSERTED.description, INSERTED.tech_tags, INSERTED.project_category, INSERTED.github_url, INSERTED.site_url,
+            `INSERT INTO projects (title, description, app_type, tech_tags, project_category, github_url, site_url, thumbnail_image, thumbnail_mime)
+        OUTPUT INSERTED.id, INSERTED.title, INSERTED.description, INSERTED.app_type, INSERTED.tech_tags, INSERTED.project_category, INSERTED.github_url, INSERTED.site_url,
               CASE WHEN INSERTED.thumbnail_image IS NOT NULL THEN 1 ELSE 0 END AS has_image,
               INSERTED.created_at, INSERTED.updated_at
-       VALUES (@title, @description, @tech_tags, @project_category, @github_url, @site_url, @thumbnail_image, @thumbnail_mime)`
+        VALUES (@title, @description, @app_type, @tech_tags, @project_category, @github_url, @site_url, @thumbnail_image, @thumbnail_mime)`
     );
     res.status(201).json(result.recordset[0]);
   } catch (err) {
@@ -98,10 +103,13 @@ router.post('/', authMiddleware, upload.single('thumbnail'), async (req, res) =>
 // PUT /api/projects/:id — admin only
 router.put('/:id', authMiddleware, upload.single('thumbnail'), async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const { title, description, tech_tags, project_category, github_url, site_url } = req.body;
+  const { title, description, app_type, tech_tags, project_category, github_url, site_url } = req.body;
 
   if (!title || !description) {
     return res.status(400).json({ error: 'title and description are required' });
+  }
+  if (!VALID_APP_TYPES.has(app_type)) {
+    return res.status(400).json({ error: 'app_type must be Code Apps, Model-Driven Apps, or Canvas Apps' });
   }
 
   try {
@@ -114,6 +122,7 @@ router.put('/:id', authMiddleware, upload.single('thumbnail'), async (req, res) 
       .input('id', sql.Int, id)
       .input('title', sql.NVarChar(200), title)
       .input('description', sql.NVarChar(sql.MAX), description)
+      .input('app_type', sql.NVarChar(50), app_type)
       .input('tech_tags', sql.NVarChar(500), tech_tags || '')
       .input('project_category', sql.NVarChar(100), project_category || null)
       .input('github_url', sql.NVarChar(500), github_url || null)
@@ -125,25 +134,25 @@ router.put('/:id', authMiddleware, upload.single('thumbnail'), async (req, res) 
         .input('thumbnail_mime', sql.NVarChar(100), req.file.mimetype);
       query = `
         UPDATE projects
-        SET title = @title, description = @description, tech_tags = @tech_tags,
+        SET title = @title, description = @description, app_type = @app_type, tech_tags = @tech_tags,
             project_category = @project_category,
             github_url = @github_url,
           site_url = @site_url,
             thumbnail_image = @thumbnail_image, thumbnail_mime = @thumbnail_mime,
             updated_at = SYSUTCDATETIME()
-        OUTPUT INSERTED.id, INSERTED.title, INSERTED.description, INSERTED.tech_tags, INSERTED.project_category, INSERTED.github_url, INSERTED.site_url,
+        OUTPUT INSERTED.id, INSERTED.title, INSERTED.description, INSERTED.app_type, INSERTED.tech_tags, INSERTED.project_category, INSERTED.github_url, INSERTED.site_url,
                CASE WHEN INSERTED.thumbnail_image IS NOT NULL THEN 1 ELSE 0 END AS has_image,
            INSERTED.created_at, INSERTED.updated_at
         WHERE id = @id`;
     } else {
       query = `
         UPDATE projects
-        SET title = @title, description = @description, tech_tags = @tech_tags,
+        SET title = @title, description = @description, app_type = @app_type, tech_tags = @tech_tags,
             project_category = @project_category,
             github_url = @github_url,
           site_url = @site_url,
             updated_at = SYSUTCDATETIME()
-        OUTPUT INSERTED.id, INSERTED.title, INSERTED.description, INSERTED.tech_tags, INSERTED.project_category, INSERTED.github_url, INSERTED.site_url,
+        OUTPUT INSERTED.id, INSERTED.title, INSERTED.description, INSERTED.app_type, INSERTED.tech_tags, INSERTED.project_category, INSERTED.github_url, INSERTED.site_url,
                CASE WHEN INSERTED.thumbnail_image IS NOT NULL THEN 1 ELSE 0 END AS has_image,
            INSERTED.created_at, INSERTED.updated_at
         WHERE id = @id`;

@@ -37,7 +37,7 @@ export default function ProjectCard({ project }) {
           </button>
         ) : (
           <div className="w-full h-52 bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm">
-            No image
+            Coming Soon
           </div>
         )}
 
