@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import ProjectCard from '../components/ProjectCard';
 
-const APP_TYPES = ['Code Apps', 'Model-Driven Apps', 'Canvas Apps'];
+const APP_TYPES = ['Pro-Code Apps', 'Model-Driven Apps', 'Canvas Apps', 'Prototype Apps'];
 
 function getOrderStorageKey(appType) {
   return `portfolio-project-order-${appType}`;

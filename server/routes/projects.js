@@ -4,7 +4,7 @@ const { getPool, sql } = require('../db/connection');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
-const VALID_APP_TYPES = new Set(['Code Apps', 'Model-Driven Apps', 'Canvas Apps']);
+const VALID_APP_TYPES = new Set(['Pro-Code Apps', 'Model-Driven Apps', 'Canvas Apps', 'Prototype Apps']);
 
 // Memory storage — store uploaded file buffer directly in the DB
 const upload = multer({

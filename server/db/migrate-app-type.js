@@ -20,7 +20,7 @@ const config = {
 
   await pool.request().query(`
     UPDATE projects
-    SET app_type = 'Code Apps'
+    SET app_type = 'Pro-Code Apps'
     WHERE app_type IS NULL;
   `);
 
@@ -40,7 +40,7 @@ const config = {
     )
       ALTER TABLE projects
       ADD CONSTRAINT CK_projects_app_type
-      CHECK (app_type IN ('Code Apps', 'Model-Driven Apps', 'Canvas Apps'));
+      CHECK (app_type IN ('Pro-Code Apps', 'Model-Driven Apps', 'Canvas Apps', 'Prototype Apps'));
   `);
 
   console.log('Migration complete: app_type column added and constrained');

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 
-const APP_TYPE_OPTIONS = ['Code Apps', 'Model-Driven Apps', 'Canvas Apps'];
+const APP_TYPE_OPTIONS = ['Pro-Code Apps', 'Model-Driven Apps', 'Canvas Apps', 'Prototype Apps'];
 
 const EMPTY_FORM = {
   title: '',
   description: '',
-  app_type: 'Code Apps',
+  app_type: 'Pro-Code Apps',
   tech_tags: '',
   project_category: '',
   github_url: '',
@@ -19,7 +19,7 @@ export default function ProjectForm({ project, onSave, onClose }) {
       ? {
           title: project.title,
           description: project.description,
-          app_type: project.app_type || 'Code Apps',
+          app_type: project.app_type || 'Pro-Code Apps',
           tech_tags: project.tech_tags,
           project_category: project.project_category || '',
           github_url: project.github_url || '',
