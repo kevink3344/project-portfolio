@@ -22,7 +22,7 @@ export default function ProjectCard({ project }) {
 
   return (
     <>
-      <div className="flex flex-col rounded-[3px] border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+      <div className="h-[30rem] flex flex-col rounded-[3px] border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
         {project.has_image ? (
           <button
             onClick={() => setLightboxOpen(true)}
@@ -41,7 +41,7 @@ export default function ProjectCard({ project }) {
           </div>
         )}
 
-        <div className="flex flex-col gap-3 p-6">
+        <div className="flex-1 flex flex-col gap-3 p-6">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white leading-snug">
               {project.title}
@@ -69,8 +69,8 @@ export default function ProjectCard({ project }) {
             </div>
           )}
 
-          {project.github_url && (
-            <div className="pt-1 mt-auto">
+          <div className="pt-1 mt-auto min-h-8 flex items-center gap-2 flex-wrap">
+              {project.github_url && (
               <a
                 href={project.github_url}
                 target="_blank"
@@ -83,8 +83,22 @@ export default function ProjectCard({ project }) {
                 </svg>
                 View repository
               </a>
-            </div>
-          )}
+              )}
+              {project.site_url && (
+              <a
+                href={project.site_url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-[3px] border border-gray-300 dark:border-gray-600 px-2.5 py-1 text-sm font-medium text-gray-700 hover:text-black dark:text-gray-300 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                aria-label={`Open live site for ${project.title}`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="h-4 w-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 000 5.656m-3.656-9.9a4 4 0 000 5.657m-1.414-1.415L7.343 11.586a4 4 0 005.657 5.657l1.414-1.414m-5.656-9.9l1.414-1.414a4 4 0 015.657 5.657l-1.415 1.414" />
+                </svg>
+                View site
+              </a>
+              )}
+          </div>
         </div>
       </div>
 

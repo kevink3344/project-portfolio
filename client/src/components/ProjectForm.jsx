@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const EMPTY_FORM = { title: '', description: '', tech_tags: '', project_category: '', github_url: '', thumbnailFile: null };
+const EMPTY_FORM = { title: '', description: '', tech_tags: '', project_category: '', github_url: '', site_url: '', thumbnailFile: null };
 
 export default function ProjectForm({ project, onSave, onClose }) {
   const [form, setForm] = useState(
@@ -11,6 +11,7 @@ export default function ProjectForm({ project, onSave, onClose }) {
           tech_tags: project.tech_tags,
           project_category: project.project_category || '',
           github_url: project.github_url || '',
+          site_url: project.site_url || '',
           thumbnailFile: null,
         }
       : EMPTY_FORM
@@ -45,6 +46,7 @@ export default function ProjectForm({ project, onSave, onClose }) {
     formData.append('tech_tags', form.tech_tags);
     formData.append('project_category', form.project_category);
     formData.append('github_url', form.github_url);
+    formData.append('site_url', form.site_url);
     if (form.thumbnailFile) {
       formData.append('thumbnail', form.thumbnailFile);
     }
@@ -106,6 +108,13 @@ export default function ProjectForm({ project, onSave, onClose }) {
             value={form.github_url}
             onChange={handleChange}
             placeholder="https://github.com/username/repo"
+          />
+          <Field
+            label="Live Site URL"
+            name="site_url"
+            value={form.site_url}
+            onChange={handleChange}
+            placeholder="https://your-site.com"
           />
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
