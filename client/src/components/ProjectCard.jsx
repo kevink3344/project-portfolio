@@ -2,20 +2,48 @@ import { useState, useEffect } from 'react';
 
 export default function ProjectCard({ project }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsMounted, setDetailsMounted] = useState(false);
 
   const tags = project.tech_tags
     ? project.tech_tags.split(',').map((t) => t.trim()).filter(Boolean)
     : [];
 
-  // Close on Escape key
+  // Close overlays on Escape key
   useEffect(() => {
-    if (!lightboxOpen) return;
+    if (!lightboxOpen && !detailsMounted) return;
     function onKey(e) {
-      if (e.key === 'Escape') setLightboxOpen(false);
+      if (e.key !== 'Escape') return;
+      setLightboxOpen(false);
+      setDetailsOpen(false);
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [lightboxOpen]);
+  }, [lightboxOpen, detailsMounted]);
+
+  useEffect(() => {
+    if (detailsOpen) {
+      setDetailsMounted(true);
+      const raf = window.requestAnimationFrame(() => setDetailsOpen(true));
+      return () => window.cancelAnimationFrame(raf);
+    }
+
+    if (!detailsMounted) return undefined;
+    const timeoutId = window.setTimeout(() => setDetailsMounted(false), 300);
+    return () => window.clearTimeout(timeoutId);
+  }, [detailsOpen, detailsMounted]);
+
+  useEffect(() => {
+    if (lightboxOpen || detailsMounted) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [lightboxOpen, detailsMounted]);
 
   const imageVersion = project.updated_at || project.created_at || '';
   const imageUrl = `/api/projects/${project.id}/image?v=${encodeURIComponent(imageVersion)}`;
@@ -70,6 +98,17 @@ export default function ProjectCard({ project }) {
           )}
 
           <div className="pt-1 mt-auto min-h-8 flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  setDetailsMounted(true);
+                  window.requestAnimationFrame(() => setDetailsOpen(true));
+                }}
+                className="inline-flex items-center gap-2 rounded-[3px] border border-blue-300 dark:border-blue-700 px-2.5 py-1 text-sm font-medium text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                aria-label={`View details for ${project.title}`}
+              >
+                View details
+              </button>
               {project.github_url && (
               <a
                 href={project.github_url}
@@ -122,6 +161,113 @@ export default function ProjectCard({ project }) {
             className="max-w-full max-h-[90vh] rounded-[3px] shadow-2xl object-contain"
             onClick={(e) => e.stopPropagation()}
           />
+        </div>
+      )}
+
+      {detailsMounted && (
+        <div className="fixed inset-0 z-50">
+          <button
+            type="button"
+            className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${
+              detailsOpen ? 'opacity-100' : 'opacity-0'
+            }`}
+            onClick={() => setDetailsOpen(false)}
+            aria-label="Close details panel"
+          />
+
+          <aside
+            className={`absolute inset-y-0 right-0 w-full max-w-2xl transform-gpu border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-2xl transition-transform duration-300 ${
+              detailsOpen ? 'translate-x-0' : 'translate-x-full'
+            }`}
+            aria-label={`${project.title} details`}
+          >
+            <div className="h-full overflow-y-auto">
+              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 px-5 py-4 backdrop-blur-sm">
+                <div className="min-w-0">
+                  <h3 className="truncate text-lg font-semibold text-gray-900 dark:text-white">{project.title}</h3>
+                  {project.app_type && (
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5">{project.app_type}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDetailsOpen(false)}
+                  className="rounded-[3px] p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800 transition-colors"
+                  aria-label="Close details panel"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="p-5 space-y-5">
+                {project.has_image ? (
+                  <img
+                    src={imageUrl}
+                    alt={`${project.title} thumbnail`}
+                    className="w-full max-h-[22rem] rounded-[3px] border border-gray-200 dark:border-gray-700 object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-56 rounded-[3px] border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm">
+                    Coming Soon
+                  </div>
+                )}
+
+                {project.project_category && (
+                  <span className="inline-flex px-2.5 py-1 rounded-[3px] text-xs font-semibold bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300">
+                    {project.project_category}
+                  </span>
+                )}
+
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Description</h4>
+                  <p className="text-sm leading-relaxed text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                    {project.description}
+                  </p>
+                </div>
+
+                {tags.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Tech Stack</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-2 py-0.5 rounded-[3px] text-xs font-medium bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {project.github_url && (
+                    <a
+                      href={project.github_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 rounded-[3px] border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm font-medium text-gray-700 hover:text-black dark:text-gray-300 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      View repository
+                    </a>
+                  )}
+                  {project.site_url && (
+                    <a
+                      href={project.site_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 rounded-[3px] border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm font-medium text-gray-700 hover:text-black dark:text-gray-300 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      View site
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
       )}
     </>
