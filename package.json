@@ -1,0 +1,13 @@
+{
+  "name": "project-portfolio",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "npm --prefix server install",
+    "start": "npm --prefix server start",
+    "postinstall": "npm --prefix server install"
+  },
+  "engines": {
+    "node": "22.x"
+  }
+}
