@@ -32,8 +32,8 @@ router.get('/', async (req, res) => {
     );
     res.json(result.recordset);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch projects' });
+    console.error('GET /api/projects error:', err.message, err.stack);
+    res.status(500).json({ error: 'Failed to fetch projects', details: err.message });
   }
 });
 
@@ -95,8 +95,8 @@ router.post('/', authMiddleware, upload.single('thumbnail'), async (req, res) =>
     );
     res.status(201).json(result.recordset[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to create project' });
+    console.error('POST /api/projects error:', err.message, err.stack);
+    res.status(500).json({ error: 'Failed to create project', details: err.message });
   }
 });
 
