@@ -11,6 +11,15 @@ const PORT = process.env.PORT || 3001;
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' }));
 app.use(express.json());
 
+app.get('/api/health', (_req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'server',
+    timestamp: new Date().toISOString(),
+    uptimeSeconds: Math.floor(process.uptime()),
+  });
+});
+
 app.use('/api/projects', projectsRouter);
 app.use('/api/auth', authRouter);
 
