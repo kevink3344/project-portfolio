@@ -122,6 +122,19 @@ async function appendProjectImages(pool, projectId, files) {
   }
 }
 
+async function listProjectImageIds(pool, projectId) {
+  const result = await pool
+    .request()
+    .input('project_id', sql.Int, projectId)
+    .query(
+      `SELECT id
+       FROM project_images
+       WHERE project_id = @project_id
+       ORDER BY sort_order ASC, id ASC`
+    );
+  return result.recordset.map((row) => row.id);
+}
+
 // GET /api/projects — public (returns metadata only, not binary image data)
 router.get('/', async (req, res) => {
   try {
@@ -276,6 +289,112 @@ router.get('/:id/images/:imageId', async (req, res) => {
   } catch (err) {
     console.error('GET /api/projects/:id/images/:imageId error:', err.message, err.stack);
     res.status(500).json({ error: 'Failed to retrieve image', details: err.message });
+  }
+});
+
+// PATCH /api/projects/:id/images/order — admin only, persists gallery order
+router.patch('/:id/images/order', authMiddleware, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { imageIds } = req.body || {};
+
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ error: 'Invalid project id' });
+  }
+
+  if (!Array.isArray(imageIds)) {
+    return res.status(400).json({ error: 'imageIds must be an array of numeric ids' });
+  }
+
+  const parsedIds = imageIds.map((value) => parseInt(value, 10));
+  if (parsedIds.some((value) => Number.isNaN(value))) {
+    return res.status(400).json({ error: 'imageIds must contain only numeric ids' });
+  }
+
+  const deduped = new Set(parsedIds);
+  if (deduped.size !== parsedIds.length) {
+    return res.status(400).json({ error: 'imageIds contains duplicate values' });
+  }
+
+  try {
+    const pool = await getPool();
+    await ensureImageTable(pool);
+
+    const existingIds = await listProjectImageIds(pool, id);
+    if (existingIds.length !== parsedIds.length) {
+      return res.status(400).json({ error: 'imageIds must include all existing image ids exactly once' });
+    }
+
+    const existingSet = new Set(existingIds);
+    if (parsedIds.some((value) => !existingSet.has(value))) {
+      return res.status(400).json({ error: 'imageIds contains ids that do not belong to this project' });
+    }
+
+    for (let index = 0; index < parsedIds.length; index += 1) {
+      await pool
+        .request()
+        .input('project_id', sql.Int, id)
+        .input('image_id', sql.Int, parsedIds[index])
+        .input('sort_order', sql.Int, index)
+        .query(
+          `UPDATE project_images
+           SET sort_order = @sort_order
+           WHERE project_id = @project_id AND id = @image_id`
+        );
+    }
+
+    res.json({ project_id: id, imageIds: parsedIds });
+  } catch (err) {
+    console.error('PATCH /api/projects/:id/images/order error:', err.message, err.stack);
+    res.status(500).json({ error: 'Failed to update image order', details: err.message });
+  }
+});
+
+// DELETE /api/projects/:id/images/:imageId — admin only
+router.delete('/:id/images/:imageId', authMiddleware, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { imageId } = req.params;
+
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ error: 'Invalid project id' });
+  }
+
+  try {
+    const pool = await getPool();
+    await ensureImageTable(pool);
+
+    if (imageId === 'legacy') {
+      await pool
+        .request()
+        .input('id', sql.Int, id)
+        .query(
+          `UPDATE projects
+           SET thumbnail_image = NULL,
+               thumbnail_mime = NULL,
+               updated_at = SYSUTCDATETIME()
+           WHERE id = @id`
+        );
+      return res.json({ deleted: 'legacy' });
+    }
+
+    const parsedImageId = parseInt(imageId, 10);
+    if (Number.isNaN(parsedImageId)) {
+      return res.status(400).json({ error: 'Invalid image id' });
+    }
+
+    const result = await pool
+      .request()
+      .input('project_id', sql.Int, id)
+      .input('image_id', sql.Int, parsedImageId)
+      .query('DELETE FROM project_images WHERE project_id = @project_id AND id = @image_id');
+
+    if (!result.rowsAffected || result.rowsAffected[0] === 0) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+
+    res.json({ deleted: parsedImageId });
+  } catch (err) {
+    console.error('DELETE /api/projects/:id/images/:imageId error:', err.message, err.stack);
+    res.status(500).json({ error: 'Failed to delete image', details: err.message });
   }
 });
 

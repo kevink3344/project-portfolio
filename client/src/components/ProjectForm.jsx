@@ -33,6 +33,11 @@ export default function ProjectForm({ project, onSave, onClose }) {
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [previews, setPreviews] = useState([]);
+  const [existingImages, setExistingImages] = useState([]);
+  const [existingImagesLoading, setExistingImagesLoading] = useState(false);
+  const [removedImageIds, setRemovedImageIds] = useState([]);
+
+  const imageOrderStorageKey = project ? `project-image-order-${project.id}` : null;
 
   useEffect(() => {
     const raf = window.requestAnimationFrame(() => setIsOpen(true));
@@ -59,6 +64,74 @@ export default function ProjectForm({ project, onSave, onClose }) {
     };
   }, [form.imageFiles]);
 
+  useEffect(() => {
+    if (!project?.id) return;
+
+    let cancelled = false;
+
+    async function loadImages() {
+      setExistingImagesLoading(true);
+      try {
+        const res = await fetch(`/api/projects/${project.id}/images`);
+        if (!res.ok) throw new Error('Failed to load project images');
+        const data = await res.json();
+        if (!Array.isArray(data)) return;
+
+        let nextImages = data.map((img) => ({
+          id: img.id,
+          url: img.url,
+          mime: img.mime || null,
+        }));
+
+        if (imageOrderStorageKey) {
+          const raw = localStorage.getItem(imageOrderStorageKey);
+          if (raw) {
+            try {
+              const savedOrder = JSON.parse(raw);
+              if (Array.isArray(savedOrder)) {
+                const imageMap = new Map(nextImages.map((img) => [String(img.id), img]));
+                const ordered = [];
+                for (const imageId of savedOrder) {
+                  const key = String(imageId);
+                  if (imageMap.has(key)) {
+                    ordered.push(imageMap.get(key));
+                    imageMap.delete(key);
+                  }
+                }
+                nextImages = [...ordered, ...imageMap.values()];
+              }
+            } catch {
+              // Ignore malformed localStorage payloads.
+            }
+          }
+        }
+
+        if (!cancelled) {
+          setExistingImages(nextImages);
+        }
+      } catch {
+        if (!cancelled) {
+          setExistingImages([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setExistingImagesLoading(false);
+        }
+      }
+    }
+
+    loadImages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [project?.id, imageOrderStorageKey]);
+
+  useEffect(() => {
+    if (!imageOrderStorageKey) return;
+    localStorage.setItem(imageOrderStorageKey, JSON.stringify(existingImages.map((image) => image.id)));
+  }, [existingImages, imageOrderStorageKey]);
+
   function handleChange(e) {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
   }
@@ -74,6 +147,41 @@ export default function ProjectForm({ project, onSave, onClose }) {
       ...f,
       imageFiles: f.imageFiles.filter((_, i) => i !== index),
     }));
+  }
+
+  function removeExistingImage(imageId) {
+    setExistingImages((prev) => prev.filter((img) => img.id !== imageId));
+    setRemovedImageIds((prev) => {
+      if (prev.includes(imageId)) return prev;
+      return [...prev, imageId];
+    });
+  }
+
+  function moveExistingImage(imageId, direction) {
+    setExistingImages((prev) => {
+      const currentIndex = prev.findIndex((img) => img.id === imageId);
+      if (currentIndex === -1) return prev;
+
+      const nextIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1;
+      if (nextIndex < 0 || nextIndex >= prev.length) return prev;
+
+      const reordered = [...prev];
+      const [moved] = reordered.splice(currentIndex, 1);
+      reordered.splice(nextIndex, 0, moved);
+      return reordered;
+    });
+  }
+
+  function movePendingImage(index, direction) {
+    setForm((current) => {
+      const nextIndex = direction === 'left' ? index - 1 : index + 1;
+      if (nextIndex < 0 || nextIndex >= current.imageFiles.length) return current;
+
+      const reordered = [...current.imageFiles];
+      const [moved] = reordered.splice(index, 1);
+      reordered.splice(nextIndex, 0, moved);
+      return { ...current, imageFiles: reordered };
+    });
   }
 
   async function handleSubmit(e) {
@@ -107,6 +215,45 @@ export default function ProjectForm({ project, onSave, onClose }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
+
+      if (project) {
+        for (const imageId of removedImageIds) {
+          const deleteRes = await fetch(`/api/projects/${project.id}/images/${imageId}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!deleteRes.ok) {
+            const deleteData = await deleteRes.json().catch(() => ({}));
+            throw new Error(deleteData.error || 'Failed to remove image');
+          }
+        }
+
+        const reorderableIds = existingImages
+          .filter((image) => image.id !== 'legacy')
+          .map((image) => Number(image.id))
+          .filter((value) => !Number.isNaN(value));
+
+        if (reorderableIds.length > 0) {
+          const orderRes = await fetch(`/api/projects/${project.id}/images/order`, {
+            method: 'PATCH',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ imageIds: reorderableIds }),
+          });
+
+          if (!orderRes.ok) {
+            const orderData = await orderRes.json().catch(() => ({}));
+            throw new Error(orderData.error || 'Failed to save image order');
+          }
+        }
+      }
+
+      if (imageOrderStorageKey) {
+        localStorage.setItem(imageOrderStorageKey, JSON.stringify(existingImages.map((image) => image.id)));
+      }
+
       onSave(data);
     } catch (err) {
       setError(err.message);
@@ -247,19 +394,61 @@ export default function ProjectForm({ project, onSave, onClose }) {
                       onChange={handleFileChange}
                       className="text-sm text-gray-700 dark:text-gray-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 dark:file:bg-indigo-900 file:text-indigo-700 dark:file:text-indigo-300 hover:file:bg-indigo-100"
                     />
-                    {project?.has_image && form.imageFiles.length === 0 && (
-                      <p className="text-xs text-gray-400 dark:text-gray-500">Leave blank to keep existing images. New uploads are appended.</p>
+                    {project?.has_image && form.imageFiles.length === 0 && existingImages.length > 0 && (
+                      <p className="text-xs text-gray-400 dark:text-gray-500">Existing images are shown below. New uploads are appended.</p>
                     )}
                   </div>
 
-                  {project?.has_image && previews.length === 0 && (
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Current cover image</p>
-                      <img
-                        src={`/api/projects/${project.id}/image`}
-                        alt="Current cover"
-                        className="w-full h-44 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                      />
+                  {project && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Existing images ({existingImages.length})</p>
+                      {existingImagesLoading ? (
+                        <p className="text-xs text-gray-400 dark:text-gray-500">Loading existing images...</p>
+                      ) : existingImages.length === 0 ? (
+                        <p className="text-xs text-gray-400 dark:text-gray-500">No existing images.</p>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-3">
+                          {existingImages.map((image, index) => (
+                            <div key={String(image.id)} className="relative rounded-lg border border-gray-200 dark:border-gray-700 p-1">
+                              <img
+                                src={image.url}
+                                alt={`Existing ${index + 1}`}
+                                className="w-full h-28 object-cover rounded-md"
+                              />
+                              <div className="absolute top-1 left-1 flex gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => moveExistingImage(image.id, 'left')}
+                                  className="rounded bg-black/60 text-white px-1.5 py-0.5 text-xs hover:bg-black/80"
+                                  aria-label={`Move image ${index + 1} left`}
+                                  disabled={index === 0}
+                                >
+                                  {'<'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => moveExistingImage(image.id, 'right')}
+                                  className="rounded bg-black/60 text-white px-1.5 py-0.5 text-xs hover:bg-black/80"
+                                  aria-label={`Move image ${index + 1} right`}
+                                  disabled={index === existingImages.length - 1}
+                                >
+                                  {'>'}
+                                </button>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeExistingImage(image.id)}
+                                className="absolute top-1 right-1 rounded-full bg-black/60 text-white p-1 hover:bg-black/80"
+                                aria-label={`Remove existing image ${index + 1}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -274,6 +463,26 @@ export default function ProjectForm({ project, onSave, onClose }) {
                               alt={`Selected ${index + 1}`}
                               className="w-full h-28 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
                             />
+                            <div className="absolute top-1 left-1 flex gap-1">
+                              <button
+                                type="button"
+                                onClick={() => movePendingImage(index, 'left')}
+                                className="rounded bg-black/60 text-white px-1.5 py-0.5 text-xs hover:bg-black/80"
+                                aria-label={`Move selected image ${index + 1} left`}
+                                disabled={index === 0}
+                              >
+                                {'<'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => movePendingImage(index, 'right')}
+                                className="rounded bg-black/60 text-white px-1.5 py-0.5 text-xs hover:bg-black/80"
+                                aria-label={`Move selected image ${index + 1} right`}
+                                disabled={index === previews.length - 1}
+                              >
+                                {'>'}
+                              </button>
+                            </div>
                             <button
                               type="button"
                               onClick={() => removeSelectedImage(index)}
