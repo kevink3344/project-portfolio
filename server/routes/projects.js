@@ -37,6 +37,40 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/projects/:id — public, returns one project record
+router.get('/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ error: 'Invalid project id' });
+  }
+
+  try {
+    const pool = await getPool();
+    const result = await pool
+      .request()
+      .input('id', sql.Int, id)
+      .query(
+        `SELECT id, title, description, app_type, tech_tags, project_category, github_url, site_url,
+                CASE WHEN thumbnail_image IS NOT NULL THEN 1 ELSE 0 END AS has_image,
+                created_at,
+                updated_at
+         FROM projects
+         WHERE id = @id`
+      );
+
+    const row = result.recordset[0];
+    if (!row) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    res.json(row);
+  } catch (err) {
+    console.error('GET /api/projects/:id error:', err.message, err.stack);
+    res.status(500).json({ error: 'Failed to fetch project', details: err.message });
+  }
+});
+
 // GET /api/projects/:id/image — public, serves the stored image binary
 router.get('/:id/image', async (req, res) => {
   const id = parseInt(req.params.id, 10);
