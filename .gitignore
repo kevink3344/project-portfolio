@@ -13,6 +13,9 @@ client/dist/
 *.log
 npm-debug.log*
 
+# SQLite local dev database
+*.sqlite
+
 # OS
 .DS_Store
 Thumbs.db
