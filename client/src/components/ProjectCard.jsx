@@ -4,6 +4,8 @@ export default function ProjectCard({ project }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsMounted, setDetailsMounted] = useState(false);
+  const [galleryImages, setGalleryImages] = useState([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const tags = project.tech_tags
     ? project.tech_tags.split(',').map((t) => t.trim()).filter(Boolean)
@@ -12,14 +14,28 @@ export default function ProjectCard({ project }) {
   // Close overlays on Escape key
   useEffect(() => {
     if (!lightboxOpen && !detailsMounted) return;
+
     function onKey(e) {
-      if (e.key !== 'Escape') return;
-      setLightboxOpen(false);
-      setDetailsOpen(false);
+      if (e.key === 'Escape') {
+        setLightboxOpen(false);
+        setDetailsOpen(false);
+        return;
+      }
+
+      if (!lightboxOpen || galleryImages.length < 2) return;
+
+      if (e.key === 'ArrowRight') {
+        setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length);
+      }
+
+      if (e.key === 'ArrowLeft') {
+        setCurrentImageIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
+      }
     }
+
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [lightboxOpen, detailsMounted]);
+  }, [lightboxOpen, detailsMounted, galleryImages.length]);
 
   useEffect(() => {
     if (detailsOpen) {
@@ -47,13 +63,52 @@ export default function ProjectCard({ project }) {
 
   const imageVersion = project.updated_at || project.created_at || '';
   const imageUrl = `/api/projects/${project.id}/image?v=${encodeURIComponent(imageVersion)}`;
+  const activeLightboxImage = galleryImages[currentImageIndex]?.url || imageUrl;
+
+  useEffect(() => {
+    setGalleryImages([]);
+    setCurrentImageIndex(0);
+  }, [project.id]);
+
+  async function openLightbox() {
+    setLightboxOpen(true);
+    try {
+      const response = await fetch(`/api/projects/${project.id}/images`);
+      if (!response.ok) {
+        setGalleryImages([{ id: 'fallback', url: imageUrl }]);
+        setCurrentImageIndex(0);
+        return;
+      }
+
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        setGalleryImages(data.map((img) => ({ id: img.id, url: img.url })));
+      } else {
+        setGalleryImages([{ id: 'fallback', url: imageUrl }]);
+      }
+      setCurrentImageIndex(0);
+    } catch {
+      setGalleryImages([{ id: 'fallback', url: imageUrl }]);
+      setCurrentImageIndex(0);
+    }
+  }
+
+  function showNextImage(e) {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length);
+  }
+
+  function showPreviousImage(e) {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
+  }
 
   return (
     <>
       <div className="h-[30rem] flex flex-col rounded-[3px] border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
         {project.has_image ? (
           <button
-            onClick={() => setLightboxOpen(true)}
+            onClick={openLightbox}
             className="w-full h-52 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-zoom-in"
             aria-label={`View full image for ${project.title}`}
           >
@@ -156,11 +211,34 @@ export default function ProjectCard({ project }) {
             </svg>
           </button>
           <img
-            src={imageUrl}
+            src={activeLightboxImage}
             alt={project.title}
             className="max-w-full max-h-[90vh] rounded-[3px] shadow-2xl object-contain"
             onClick={(e) => e.stopPropagation()}
           />
+
+          {galleryImages.length > 1 && (
+            <>
+              <button
+                onClick={showPreviousImage}
+                aria-label="Previous image"
+                className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-3 text-white hover:bg-black/60 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                onClick={showNextImage}
+                aria-label="Next image"
+                className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-3 text-white hover:bg-black/60 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </>
+          )}
         </div>
       )}
 

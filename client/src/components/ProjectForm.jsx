@@ -10,7 +10,7 @@ const EMPTY_FORM = {
   project_category: '',
   github_url: '',
   site_url: '',
-  thumbnailFile: null,
+  imageFiles: [],
 };
 
 export default function ProjectForm({ project, onSave, onClose }) {
@@ -24,7 +24,7 @@ export default function ProjectForm({ project, onSave, onClose }) {
           project_category: project.project_category || '',
           github_url: project.github_url || '',
           site_url: project.site_url || '',
-          thumbnailFile: null,
+          imageFiles: [],
         }
       : EMPTY_FORM
   );
@@ -37,10 +37,10 @@ export default function ProjectForm({ project, onSave, onClose }) {
   }
 
   function handleFileChange(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    setForm((f) => ({ ...f, thumbnailFile: file }));
-    setPreview(URL.createObjectURL(file));
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setForm((f) => ({ ...f, imageFiles: files }));
+    setPreview(URL.createObjectURL(files[0]));
   }
 
   async function handleSubmit(e) {
@@ -60,8 +60,10 @@ export default function ProjectForm({ project, onSave, onClose }) {
     formData.append('project_category', form.project_category);
     formData.append('github_url', form.github_url);
     formData.append('site_url', form.site_url);
-    if (form.thumbnailFile) {
-      formData.append('thumbnail', form.thumbnailFile);
+    if (form.imageFiles.length > 0) {
+      for (const file of form.imageFiles) {
+        formData.append('images', file);
+      }
     }
 
     try {
@@ -163,18 +165,19 @@ export default function ProjectForm({ project, onSave, onClose }) {
             placeholder="React, Node.js, Azure SQL"
           />
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Thumbnail image</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Project images</label>
             {preview && (
               <img src={preview} alt="Preview" className="w-full h-36 object-cover rounded-lg mb-1" />
             )}
             <input
               type="file"
+              multiple
               accept="image/*"
               onChange={handleFileChange}
               className="text-sm text-gray-700 dark:text-gray-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 dark:file:bg-indigo-900 file:text-indigo-700 dark:file:text-indigo-300 hover:file:bg-indigo-100"
             />
-            {project?.has_image && !form.thumbnailFile && (
-              <p className="text-xs text-gray-400 dark:text-gray-500">Leave blank to keep the existing image</p>
+            {project?.has_image && form.imageFiles.length === 0 && (
+              <p className="text-xs text-gray-400 dark:text-gray-500">Leave blank to keep existing images. New uploads are appended.</p>
             )}
           </div>
 

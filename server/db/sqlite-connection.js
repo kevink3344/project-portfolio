@@ -49,6 +49,23 @@ function initSchema(db) {
       updated_at       TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
     )
   `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS project_images (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      image_data BLOB NOT NULL,
+      image_mime TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_project_images_project_sort
+    ON project_images(project_id, sort_order, id)
+  `);
 }
 
 // Type stubs — SQLite does not use typed parameters; these are accepted and ignored.
@@ -62,7 +79,12 @@ const sql = {
 // Columns returned after INSERT / UPDATE to match the mssql OUTPUT shape.
 const FIND_BY_ID = `
   SELECT id, title, description, app_type, tech_tags, project_category, github_url, site_url,
-         CASE WHEN thumbnail_image IS NOT NULL THEN 1 ELSE 0 END AS has_image,
+         CASE
+           WHEN thumbnail_image IS NOT NULL
+             OR EXISTS (SELECT 1 FROM project_images pi WHERE pi.project_id = projects.id)
+           THEN 1
+           ELSE 0
+         END AS has_image,
          created_at, updated_at
   FROM projects WHERE id = ?
 `;
