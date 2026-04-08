@@ -1,0 +1,571 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Project Portfolio API",
+    "description": "REST API for portfolio projects, authentication, health checks, and image retrieval.",
+    "version": "1.0.0"
+  },
+  "host": "localhost:3001",
+  "basePath": "/",
+  "schemes": [
+    "http"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "tags": [
+    {
+      "name": "Health"
+    },
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Projects"
+    }
+  ],
+  "securityDefinitions": {
+    "BearerAuth": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "JWT bearer token. Format: Bearer <token>"
+    }
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "API health check",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "schema": {
+              "$ref": "#/definitions/HealthResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/swagger.json": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Swagger metadata document",
+        "responses": {
+          "200": {
+            "description": "Swagger 2.0 metadata",
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Admin login",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/LoginRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authentication succeeded",
+            "schema": {
+              "$ref": "#/definitions/LoginResponse"
+            }
+          },
+          "400": {
+            "description": "Missing username/password",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/projects": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "List projects",
+        "responses": {
+          "200": {
+            "description": "Projects retrieved",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Project"
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to fetch projects",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Create a project",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "parameters": [
+          {
+            "name": "title",
+            "in": "formData",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "in": "formData",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "app_type",
+            "in": "formData",
+            "required": true,
+            "type": "string",
+            "enum": [
+              "Pro-Code Apps",
+              "Model-Driven Apps",
+              "Canvas Apps",
+              "Prototype Apps"
+            ]
+          },
+          {
+            "name": "tech_tags",
+            "in": "formData",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "project_category",
+            "in": "formData",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "github_url",
+            "in": "formData",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "site_url",
+            "in": "formData",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "thumbnail",
+            "in": "formData",
+            "required": false,
+            "type": "file",
+            "description": "Image file up to 5 MB"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Project created",
+            "schema": {
+              "$ref": "#/definitions/Project"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Failed to create project",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{id}": {
+      "put": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Update a project",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "title",
+            "in": "formData",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "in": "formData",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "app_type",
+            "in": "formData",
+            "required": true,
+            "type": "string",
+            "enum": [
+              "Pro-Code Apps",
+              "Model-Driven Apps",
+              "Canvas Apps",
+              "Prototype Apps"
+            ]
+          },
+          {
+            "name": "tech_tags",
+            "in": "formData",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "project_category",
+            "in": "formData",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "github_url",
+            "in": "formData",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "site_url",
+            "in": "formData",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "thumbnail",
+            "in": "formData",
+            "required": false,
+            "type": "file",
+            "description": "Image file up to 5 MB"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project updated",
+            "schema": {
+              "$ref": "#/definitions/Project"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Failed to update project",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Delete a project",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project deleted",
+            "schema": {
+              "$ref": "#/definitions/DeleteResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Failed to delete project",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{id}/image": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Get project thumbnail image",
+        "produces": [
+          "image/png",
+          "image/jpeg",
+          "image/webp",
+          "application/octet-stream",
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image binary response"
+          },
+          "404": {
+            "description": "No image found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Failed to retrieve image",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "HealthResponse": {
+      "type": "object",
+      "required": [
+        "status",
+        "service",
+        "timestamp",
+        "uptimeSeconds"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "example": "ok"
+        },
+        "service": {
+          "type": "string",
+          "example": "server"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "uptimeSeconds": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "LoginRequest": {
+      "type": "object",
+      "required": [
+        "username",
+        "password"
+      ],
+      "properties": {
+        "username": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        }
+      }
+    },
+    "LoginResponse": {
+      "type": "object",
+      "required": [
+        "token"
+      ],
+      "properties": {
+        "token": {
+          "type": "string"
+        }
+      }
+    },
+    "Project": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "description",
+        "app_type",
+        "tech_tags",
+        "has_image",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "app_type": {
+          "type": "string",
+          "enum": [
+            "Pro-Code Apps",
+            "Model-Driven Apps",
+            "Canvas Apps",
+            "Prototype Apps"
+          ]
+        },
+        "tech_tags": {
+          "type": "string"
+        },
+        "project_category": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "github_url": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "site_url": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "has_image": {
+          "type": "integer",
+          "format": "int32",
+          "description": "1 when thumbnail exists, otherwise 0"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "DeleteResponse": {
+      "type": "object",
+      "required": [
+        "deleted"
+      ],
+      "properties": {
+        "deleted": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "required": [
+        "error"
+      ],
+      "properties": {
+        "error": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

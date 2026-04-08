@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const swaggerDocument = require('./swagger.json');
 
 const projectsRouter = require('./routes/projects');
 const authRouter = require('./routes/auth');
@@ -18,6 +19,10 @@ app.get('/api/health', (_req, res) => {
     timestamp: new Date().toISOString(),
     uptimeSeconds: Math.floor(process.uptime()),
   });
+});
+
+app.get('/api/swagger.json', (_req, res) => {
+  res.json(swaggerDocument);
 });
 
 app.use('/api/projects', projectsRouter);
