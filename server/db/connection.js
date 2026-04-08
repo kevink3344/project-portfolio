@@ -1,3 +1,8 @@
+// When USE_SQLITE=true, use the local SQLite adapter instead of Azure SQL.
+if (process.env.USE_SQLITE === 'true') {
+  module.exports = require('./sqlite-connection');
+} else {
+
 const sql = require('mssql');
 
 const config = {
@@ -22,3 +27,5 @@ async function getPool() {
 }
 
 module.exports = { getPool, sql };
+
+} // end else (Azure SQL)
