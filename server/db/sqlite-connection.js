@@ -135,6 +135,7 @@ class SqliteRequest {
       const info = db.prepare(stripped).run(params);
       return Promise.resolve({
         recordset: info.changes > 0 ? [{ id: params.id }] : [],
+        rowsAffected: [info.changes],
       });
     }
 
@@ -145,8 +146,11 @@ class SqliteRequest {
     }
 
     // --- Other DML (no OUTPUT) ---
-    db.prepare(sqlText).run(params);
-    return Promise.resolve({ recordset: [] });
+    const info = db.prepare(sqlText).run(params);
+    return Promise.resolve({
+      recordset: [],
+      rowsAffected: [info.changes],
+    });
   }
 }
 
