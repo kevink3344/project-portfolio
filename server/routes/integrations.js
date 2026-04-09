@@ -145,37 +145,26 @@ router.post('/', authMiddleware, upload.single('icon'), async (req, res) => {
     const maxOrderResult = await pool.request().query('SELECT MAX(sort_order) as maxOrder FROM integrations');
     const nextOrder = (maxOrderResult.recordset[0]?.maxOrder ?? -1) + 1;
 
-    if (IS_SQLITE) {
-      const result = await pool
-        .request()
-        .input('title', sql.NVarChar, title.trim())
-        .input('description', sql.NVarChar, description.trim())
-        .input('icon_data', sql.VarBinary, req.file.buffer)
-        .input('icon_mime', sql.NVarChar, req.file.mimetype)
-        .input('sort_order', sql.Int, nextOrder)
-        .query(
-          `INSERT INTO integrations (title, description, icon_data, icon_mime, sort_order)
-           VALUES (@title, @description, @icon_data, @icon_mime, @sort_order);
-           SELECT last_insert_rowid() as id`
-        );
-      const id = result.recordset[0].id;
-      res.status(201).json({ id, title: title.trim(), description: description.trim() });
-    } else {
-      const result = await pool
-        .request()
-        .input('title', sql.NVarChar, title.trim())
-        .input('description', sql.NVarChar, description.trim())
-        .input('icon_data', sql.VarBinary, req.file.buffer)
-        .input('icon_mime', sql.NVarChar, req.file.mimetype)
-        .input('sort_order', sql.Int, nextOrder)
-        .query(
-          `INSERT INTO integrations (title, description, icon_data, icon_mime, sort_order)
-           OUTPUT INSERTED.id
-           VALUES (@title, @description, @icon_data, @icon_mime, @sort_order)`
-        );
-      const id = result.recordset[0].id;
-      res.status(201).json({ id, title: title.trim(), description: description.trim() });
-    }
+    const result = await pool
+      .request()
+      .input('title', sql.NVarChar, title.trim())
+      .input('description', sql.NVarChar, description.trim())
+      .input('icon_data', sql.VarBinary, req.file.buffer)
+      .input('icon_mime', sql.NVarChar, req.file.mimetype)
+      .input('sort_order', sql.Int, nextOrder)
+      .query(
+        `INSERT INTO integrations (title, description, icon_data, icon_mime, sort_order)
+         OUTPUT INSERTED.id
+         VALUES (@title, @description, @icon_data, @icon_mime, @sort_order)`
+      );
+
+    const id = result.recordset[0].id;
+    res.status(201).json({
+      id,
+      title: title.trim(),
+      description: description.trim(),
+      iconUrl: `/api/integrations/${id}/icon`,
+    });
   } catch (err) {
     console.error('POST /api/integrations error:', err.message, err.stack);
     res.status(500).json({ error: 'Failed to create integration', details: err.message });
@@ -231,7 +220,12 @@ router.put('/:id', authMiddleware, upload.single('icon'), async (req, res) => {
         );
     }
 
-    res.json({ id, title: title.trim(), description: description.trim() });
+    res.json({
+      id,
+      title: title.trim(),
+      description: description.trim(),
+      iconUrl: `/api/integrations/${id}/icon`,
+    });
   } catch (err) {
     console.error('PUT /api/integrations/:id error:', err.message, err.stack);
     res.status(500).json({ error: 'Failed to update integration', details: err.message });
