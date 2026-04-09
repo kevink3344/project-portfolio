@@ -3,6 +3,10 @@ import ProjectCard from '../components/ProjectCard';
 
 const APP_TYPES = ['Pro-Code Apps', 'Model-Driven Apps', 'Canvas Apps', 'Prototype Apps'];
 
+function getAppTypeLabel(appType) {
+  return appType === 'Pro-Code Apps' ? 'Code Apps' : appType;
+}
+
 function getOrderStorageKey(appType) {
   return `portfolio-project-order-${appType}`;
 }
@@ -125,14 +129,14 @@ export default function Home() {
                 : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
             }`}
           >
-            {tab}
+            {getAppTypeLabel(tab)}
           </button>
         ))}
       </div>
 
       {filteredProjects.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-24 text-gray-400 dark:text-gray-500">
-          <p className="text-lg font-medium">No projects in {selectedTab}</p>
+          <p className="text-lg font-medium">No projects in {getAppTypeLabel(selectedTab)}</p>
           <p className="text-sm">Add projects in Admin and assign this app type.</p>
         </div>
       ) : (
