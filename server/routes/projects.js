@@ -320,10 +320,6 @@ router.patch('/:id/images/order', authMiddleware, async (req, res) => {
     await ensureImageTable(pool);
 
     const existingIds = await listProjectImageIds(pool, id);
-    if (existingIds.length !== parsedIds.length) {
-      return res.status(400).json({ error: 'imageIds must include all existing image ids exactly once' });
-    }
-
     const existingSet = new Set(existingIds);
     if (parsedIds.some((value) => !existingSet.has(value))) {
       return res.status(400).json({ error: 'imageIds contains ids that do not belong to this project' });
