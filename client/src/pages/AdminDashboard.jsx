@@ -101,7 +101,8 @@ export default function AdminDashboard() {
             <thead className="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 uppercase text-xs">
               <tr>
                 <th className="px-4 py-3 font-medium">Title</th>
-                <th className="px-4 py-3 font-medium hidden sm:table-cell">Tags</th>
+                  <th className="px-4 py-3 font-medium hidden md:table-cell">App Type</th>
+                  <th className="px-4 py-3 font-medium hidden sm:table-cell">Tags</th>
                 <th className="px-4 py-3 font-medium">Actions</th>
               </tr>
             </thead>
@@ -109,7 +110,10 @@ export default function AdminDashboard() {
               {projects.map((project) => (
                 <tr key={project.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                   <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{project.title}</td>
-                  <td className="px-4 py-3 hidden sm:table-cell text-gray-500 dark:text-gray-400">
+                    <td className="px-4 py-3 hidden md:table-cell text-gray-500 dark:text-gray-400">
+                      {project.app_type || '—'}
+                    </td>
+                    <td className="px-4 py-3 hidden sm:table-cell text-gray-500 dark:text-gray-400">
                     {project.tech_tags || '—'}
                   </td>
                   <td className="px-4 py-3">
