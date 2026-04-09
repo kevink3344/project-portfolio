@@ -33,3 +33,21 @@ BEGIN
   CREATE INDEX IX_project_images_project_sort
     ON project_images(project_id, sort_order, id);
 END;
+
+IF NOT EXISTS (
+  SELECT 1 FROM sys.tables WHERE name = 'integrations'
+)
+BEGIN
+  CREATE TABLE integrations (
+    id          INT            IDENTITY(1,1) PRIMARY KEY,
+    title       NVARCHAR(200)  NOT NULL,
+    description NVARCHAR(MAX)  NOT NULL,
+    icon_data   VARBINARY(MAX) NOT NULL,
+    icon_mime   NVARCHAR(100)  NULL,
+    sort_order  INT            NOT NULL DEFAULT 0,
+    created_at  DATETIME2      NOT NULL DEFAULT SYSUTCDATETIME(),
+    updated_at  DATETIME2      NOT NULL DEFAULT SYSUTCDATETIME()
+  );
+
+  CREATE INDEX IX_integrations_sort ON integrations(sort_order, id);
+END;

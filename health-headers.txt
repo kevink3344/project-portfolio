@@ -1,0 +1,11 @@
+HTTP/1.1 200 OK
+X-Powered-By: Express
+Access-Control-Allow-Origin: http://localhost:5173
+Vary: Origin
+Content-Type: application/json; charset=utf-8
+Content-Length: 94
+ETag: W/"5e-f2AK2EWIsgkSuVA/QcI91FxJTSQ"
+Date: Wed, 08 Apr 2026 13:45:11 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+

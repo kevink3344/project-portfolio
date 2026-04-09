@@ -1,0 +1,1 @@
+{"status":"ok","service":"server","timestamp":"2026-04-08T13:45:11.191Z","uptimeSeconds":8513}

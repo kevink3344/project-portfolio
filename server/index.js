@@ -7,6 +7,7 @@ const swaggerDocument = require('./swagger.json');
 
 const projectsRouter = require('./routes/projects');
 const authRouter = require('./routes/auth');
+const integrationsRouter = require('./routes/integrations');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -31,6 +32,7 @@ app.get('/api/swagger.json', (_req, res) => {
 
 app.use('/api/projects', projectsRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/integrations', integrationsRouter);
 
 if (fs.existsSync(clientIndexPath)) {
   app.use(express.static(clientDistDir));
