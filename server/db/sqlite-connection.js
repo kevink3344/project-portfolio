@@ -40,6 +40,7 @@ function initSchema(db) {
       description      TEXT    NOT NULL,
       app_type         TEXT    NOT NULL DEFAULT '',
       tech_tags        TEXT    NOT NULL DEFAULT '',
+      is_active        INTEGER NOT NULL DEFAULT 1,
       project_category TEXT,
       github_url       TEXT,
       site_url         TEXT,
@@ -66,6 +67,14 @@ function initSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_project_images_project_sort
     ON project_images(project_id, sort_order, id)
   `);
+
+  try {
+    db.exec('ALTER TABLE projects ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1');
+  } catch (err) {
+    if (!String(err?.message || '').toLowerCase().includes('duplicate column name')) {
+      throw err;
+    }
+  }
 }
 
 // Type stubs — SQLite does not use typed parameters; these are accepted and ignored.
@@ -78,7 +87,7 @@ const sql = {
 
 // Columns returned after INSERT / UPDATE to match the mssql OUTPUT shape.
 const FIND_BY_ID = `
-  SELECT id, title, description, app_type, tech_tags, project_category, github_url, site_url,
+  SELECT id, title, description, app_type, tech_tags, project_category, github_url, site_url, is_active,
          CASE
            WHEN thumbnail_image IS NOT NULL
              OR EXISTS (SELECT 1 FROM project_images pi WHERE pi.project_id = projects.id)

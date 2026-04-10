@@ -8,6 +8,7 @@ BEGIN
     id          INT           IDENTITY(1,1) PRIMARY KEY,
     title       NVARCHAR(200) NOT NULL,
     description NVARCHAR(MAX) NOT NULL,
+    is_active   BIT           NOT NULL DEFAULT 1,
     tech_tags   NVARCHAR(500) NOT NULL DEFAULT '',  -- comma-separated list, e.g. "React,Node.js,Azure"
     thumbnail   NVARCHAR(500) NOT NULL DEFAULT '',  -- URL to thumbnail image
     created_at  DATETIME2     NOT NULL DEFAULT SYSUTCDATETIME(),

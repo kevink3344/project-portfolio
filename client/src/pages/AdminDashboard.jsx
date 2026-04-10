@@ -24,7 +24,9 @@ export default function AdminDashboard() {
 
   async function fetchProjects() {
     try {
-      const res = await fetch('/api/projects');
+      const res = await fetch('/api/projects/admin/all', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!res.ok) throw new Error('Failed to load projects');
       setProjects(await res.json());
     } catch (err) {
@@ -180,6 +182,7 @@ export default function AdminDashboard() {
                     <th className="px-4 py-3 font-medium">Title</th>
                     <th className="px-4 py-3 font-medium hidden md:table-cell">App Type</th>
                     <th className="px-4 py-3 font-medium hidden sm:table-cell">Tags</th>
+                    <th className="px-4 py-3 font-medium hidden sm:table-cell">Status</th>
                     <th className="px-4 py-3 font-medium">Actions</th>
                   </tr>
                 </thead>
@@ -192,6 +195,17 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-4 py-3 hidden sm:table-cell text-gray-500 dark:text-gray-400">
                         {project.tech_tags || '—'}
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                            project.is_active
+                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                              : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
+                          }`}
+                        >
+                          {project.is_active ? 'Active' : 'Inactive'}
+                        </span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">

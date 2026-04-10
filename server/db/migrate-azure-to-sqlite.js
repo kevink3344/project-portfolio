@@ -36,6 +36,7 @@ function ensureSqliteSchema(db) {
       description      TEXT    NOT NULL,
       app_type         TEXT    NOT NULL DEFAULT '',
       tech_tags        TEXT    NOT NULL DEFAULT '',
+      is_active        INTEGER NOT NULL DEFAULT 1,
       project_category TEXT,
       github_url       TEXT,
       site_url         TEXT,
@@ -51,7 +52,7 @@ async function fetchAzureProjects() {
   const pool = await sql.connect(mssqlConfig);
   try {
     const metaResult = await pool.request().query(`
-      SELECT id, title, description, app_type, tech_tags, project_category, github_url, site_url,
+      SELECT id, title, description, app_type, tech_tags, project_category, github_url, site_url, is_active,
              CASE WHEN thumbnail_image IS NOT NULL THEN 1 ELSE 0 END AS has_image,
              thumbnail_mime, created_at, updated_at
       FROM projects
@@ -90,6 +91,7 @@ async function fetchAzureProjects() {
         description: meta.description,
         app_type: meta.app_type,
         tech_tags: meta.tech_tags,
+        is_active: meta.is_active,
         project_category: meta.project_category,
         github_url: meta.github_url,
         site_url: meta.site_url,
@@ -135,16 +137,17 @@ function upsertIntoSqlite(rows) {
   const upsert = db.prepare(`
     INSERT INTO projects (
       id, title, description, app_type, tech_tags, project_category, github_url, site_url,
-      thumbnail_image, thumbnail_mime, created_at, updated_at
+      is_active, thumbnail_image, thumbnail_mime, created_at, updated_at
     ) VALUES (
       @id, @title, @description, @app_type, @tech_tags, @project_category, @github_url, @site_url,
-      @thumbnail_image, @thumbnail_mime, @created_at, @updated_at
+      @is_active, @thumbnail_image, @thumbnail_mime, @created_at, @updated_at
     )
     ON CONFLICT(id) DO UPDATE SET
       title = excluded.title,
       description = excluded.description,
       app_type = excluded.app_type,
       tech_tags = excluded.tech_tags,
+      is_active = excluded.is_active,
       project_category = excluded.project_category,
       github_url = excluded.github_url,
       site_url = excluded.site_url,
@@ -162,6 +165,7 @@ function upsertIntoSqlite(rows) {
         description: r.description,
         app_type: r.app_type || '',
         tech_tags: r.tech_tags || '',
+        is_active: r.is_active === 0 ? 0 : 1,
         project_category: r.project_category ?? null,
         github_url: r.github_url ?? null,
         site_url: r.site_url ?? null,

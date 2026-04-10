@@ -7,6 +7,7 @@ const EMPTY_FORM = {
   description: '',
   app_type: 'Pro-Code Apps',
   tech_tags: '',
+  is_active: true,
   project_category: '',
   github_url: '',
   site_url: '',
@@ -23,6 +24,7 @@ export default function ProjectForm({ project, onSave, onClose }) {
           description: project.description,
           app_type: project.app_type || 'Pro-Code Apps',
           tech_tags: project.tech_tags,
+          is_active: project.is_active !== 0,
           project_category: project.project_category || '',
           github_url: project.github_url || '',
           site_url: project.site_url || '',
@@ -133,6 +135,11 @@ export default function ProjectForm({ project, onSave, onClose }) {
   }, [existingImages, imageOrderStorageKey]);
 
   function handleChange(e) {
+    if (e.target.type === 'checkbox') {
+      setForm((f) => ({ ...f, [e.target.name]: e.target.checked }));
+      return;
+    }
+
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
   }
 
@@ -198,6 +205,7 @@ export default function ProjectForm({ project, onSave, onClose }) {
     formData.append('description', form.description);
     formData.append('app_type', form.app_type);
     formData.append('tech_tags', form.tech_tags);
+    formData.append('is_active', String(form.is_active));
     formData.append('project_category', form.project_category);
     formData.append('github_url', form.github_url);
     formData.append('site_url', form.site_url);
@@ -382,6 +390,25 @@ export default function ProjectForm({ project, onSave, onClose }) {
                     onChange={handleChange}
                     placeholder="React, Node.js, SQLite"
                   />
+                  <div className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Status</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {form.is_active ? 'Active (visible to viewers)' : 'Inactive (hidden from viewers)'}
+                      </span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        name="is_active"
+                        checked={form.is_active}
+                        onChange={handleChange}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 rounded-full bg-gray-300 dark:bg-gray-600 peer-checked:bg-emerald-600 transition-colors peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-500/60" />
+                      <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
+                    </label>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">

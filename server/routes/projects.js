@@ -7,6 +7,7 @@ const router = express.Router();
 const VALID_APP_TYPES = new Set(['Pro-Code Apps', 'Model-Driven Apps', 'Canvas Apps', 'Prototype Apps']);
 const IS_SQLITE = process.env.USE_SQLITE === 'true';
 let imageTableReadyPromise;
+let projectColumnsReadyPromise;
 
 // Memory storage — store uploaded file buffer directly in the DB
 const upload = multer({
@@ -71,6 +72,61 @@ async function ensureImageTable(pool) {
   await imageTableReadyPromise;
 }
 
+async function ensureProjectColumns(pool) {
+  if (!projectColumnsReadyPromise) {
+    projectColumnsReadyPromise = (async () => {
+      if (IS_SQLITE) {
+        try {
+          await pool
+            .request()
+            .query('ALTER TABLE projects ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1');
+        } catch (err) {
+          const message = String(err?.message || '').toLowerCase();
+          if (!message.includes('duplicate column name')) {
+            throw err;
+          }
+        }
+      } else {
+        await pool.request().query(`
+          IF NOT EXISTS (
+            SELECT 1
+            FROM sys.columns
+            WHERE object_id = OBJECT_ID('projects') AND name = 'is_active'
+          )
+          BEGIN
+            ALTER TABLE projects ADD is_active BIT NOT NULL CONSTRAINT DF_projects_is_active DEFAULT 1;
+          END
+        `);
+      }
+    })().catch((err) => {
+      projectColumnsReadyPromise = null;
+      throw err;
+    });
+  }
+
+  await projectColumnsReadyPromise;
+}
+
+function parseIsActive(value, fallback = true) {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  const normalized = String(value).trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) {
+    return true;
+  }
+  if (['0', 'false', 'no', 'off'].includes(normalized)) {
+    return false;
+  }
+
+  return null;
+}
+
 function getUploadedImages(req) {
   const images = req.files?.images || [];
   const thumbnail = req.files?.thumbnail || [];
@@ -83,6 +139,7 @@ async function getProjectWithImageFlag(pool, id) {
     .input('id', sql.Int, id)
     .query(
       `SELECT id, title, description, app_type, tech_tags, project_category, github_url, site_url,
+              is_active,
               CASE
                 WHEN thumbnail_image IS NOT NULL
                   OR EXISTS (SELECT 1 FROM project_images pi WHERE pi.project_id = projects.id)
@@ -140,8 +197,38 @@ router.get('/', async (req, res) => {
   try {
     const pool = await getPool();
     await ensureImageTable(pool);
+    await ensureProjectColumns(pool);
     const result = await pool.request().query(
       `SELECT id, title, description, app_type, tech_tags, project_category, github_url, site_url,
+              is_active,
+              CASE
+                WHEN thumbnail_image IS NOT NULL
+                  OR EXISTS (SELECT 1 FROM project_images pi WHERE pi.project_id = projects.id)
+                THEN 1
+                ELSE 0
+              END AS has_image,
+              created_at,
+              updated_at
+       FROM projects
+       WHERE is_active = 1
+       ORDER BY created_at DESC`
+    );
+    res.json(result.recordset);
+  } catch (err) {
+    console.error('GET /api/projects error:', err.message, err.stack);
+    res.status(500).json({ error: 'Failed to fetch projects', details: err.message });
+  }
+});
+
+// GET /api/projects/admin/all — admin only (includes inactive projects)
+router.get('/admin/all', authMiddleware, async (req, res) => {
+  try {
+    const pool = await getPool();
+    await ensureImageTable(pool);
+    await ensureProjectColumns(pool);
+    const result = await pool.request().query(
+      `SELECT id, title, description, app_type, tech_tags, project_category, github_url, site_url,
+              is_active,
               CASE
                 WHEN thumbnail_image IS NOT NULL
                   OR EXISTS (SELECT 1 FROM project_images pi WHERE pi.project_id = projects.id)
@@ -155,7 +242,7 @@ router.get('/', async (req, res) => {
     );
     res.json(result.recordset);
   } catch (err) {
-    console.error('GET /api/projects error:', err.message, err.stack);
+    console.error('GET /api/projects/admin/all error:', err.message, err.stack);
     res.status(500).json({ error: 'Failed to fetch projects', details: err.message });
   }
 });
@@ -171,6 +258,7 @@ router.get('/:id', async (req, res) => {
   try {
     const pool = await getPool();
     await ensureImageTable(pool);
+    await ensureProjectColumns(pool);
     const row = await getProjectWithImageFlag(pool, id);
     if (!row) {
       return res.status(404).json({ error: 'Project not found' });
@@ -439,8 +527,9 @@ router.get('/:id/image', async (req, res) => {
 
 // POST /api/projects — admin only
 router.post('/', authMiddleware, uploadImages, async (req, res) => {
-  const { title, description, app_type, tech_tags, project_category, github_url, site_url } = req.body;
+  const { title, description, app_type, tech_tags, project_category, github_url, site_url, is_active } = req.body;
   const uploadedImages = getUploadedImages(req);
+  const parsedIsActive = parseIsActive(is_active, true);
 
   if (!title || !description) {
     return res.status(400).json({ error: 'title and description are required' });
@@ -448,10 +537,14 @@ router.post('/', authMiddleware, uploadImages, async (req, res) => {
   if (!VALID_APP_TYPES.has(app_type)) {
     return res.status(400).json({ error: 'app_type must be Code Apps, Model-Driven Apps, or Canvas Apps' });
   }
+  if (parsedIsActive === null) {
+    return res.status(400).json({ error: 'is_active must be true or false' });
+  }
 
   try {
     const pool = await getPool();
     await ensureImageTable(pool);
+    await ensureProjectColumns(pool);
     const request = pool
       .request()
       .input('title', sql.NVarChar(200), title)
@@ -461,15 +554,16 @@ router.post('/', authMiddleware, uploadImages, async (req, res) => {
       .input('project_category', sql.NVarChar(100), project_category || null)
       .input('github_url', sql.NVarChar(500), github_url || null)
       .input('site_url', sql.NVarChar(500), site_url || null)
+      .input('is_active', sql.Int, parsedIsActive ? 1 : 0)
       .input('thumbnail_image', sql.VarBinary(sql.MAX), null)
       .input('thumbnail_mime', sql.NVarChar(100), null);
 
     const result = await request.query(
-            `INSERT INTO projects (title, description, app_type, tech_tags, project_category, github_url, site_url, thumbnail_image, thumbnail_mime)
-        OUTPUT INSERTED.id, INSERTED.title, INSERTED.description, INSERTED.app_type, INSERTED.tech_tags, INSERTED.project_category, INSERTED.github_url, INSERTED.site_url,
+        `INSERT INTO projects (title, description, app_type, tech_tags, project_category, github_url, site_url, is_active, thumbnail_image, thumbnail_mime)
+        OUTPUT INSERTED.id, INSERTED.title, INSERTED.description, INSERTED.app_type, INSERTED.tech_tags, INSERTED.project_category, INSERTED.github_url, INSERTED.site_url, INSERTED.is_active,
               CASE WHEN INSERTED.thumbnail_image IS NOT NULL THEN 1 ELSE 0 END AS has_image,
               INSERTED.created_at, INSERTED.updated_at
-        VALUES (@title, @description, @app_type, @tech_tags, @project_category, @github_url, @site_url, @thumbnail_image, @thumbnail_mime)`
+        VALUES (@title, @description, @app_type, @tech_tags, @project_category, @github_url, @site_url, @is_active, @thumbnail_image, @thumbnail_mime)`
     );
 
     const created = result.recordset[0];
@@ -486,8 +580,9 @@ router.post('/', authMiddleware, uploadImages, async (req, res) => {
 // PUT /api/projects/:id — admin only
 router.put('/:id', authMiddleware, uploadImages, async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const { title, description, app_type, tech_tags, project_category, github_url, site_url } = req.body;
+  const { title, description, app_type, tech_tags, project_category, github_url, site_url, is_active } = req.body;
   const uploadedImages = getUploadedImages(req);
+  const parsedIsActive = parseIsActive(is_active, true);
 
   if (!title || !description) {
     return res.status(400).json({ error: 'title and description are required' });
@@ -495,10 +590,14 @@ router.put('/:id', authMiddleware, uploadImages, async (req, res) => {
   if (!VALID_APP_TYPES.has(app_type)) {
     return res.status(400).json({ error: 'app_type must be Code Apps, Model-Driven Apps, or Canvas Apps' });
   }
+  if (parsedIsActive === null) {
+    return res.status(400).json({ error: 'is_active must be true or false' });
+  }
 
   try {
     const pool = await getPool();
     await ensureImageTable(pool);
+    await ensureProjectColumns(pool);
 
     const request = pool
       .request()
@@ -509,7 +608,8 @@ router.put('/:id', authMiddleware, uploadImages, async (req, res) => {
       .input('tech_tags', sql.NVarChar(500), tech_tags || '')
       .input('project_category', sql.NVarChar(100), project_category || null)
       .input('github_url', sql.NVarChar(500), github_url || null)
-      .input('site_url', sql.NVarChar(500), site_url || null);
+      .input('site_url', sql.NVarChar(500), site_url || null)
+      .input('is_active', sql.Int, parsedIsActive ? 1 : 0);
 
     const result = await request.query(`
       UPDATE projects
@@ -517,8 +617,9 @@ router.put('/:id', authMiddleware, uploadImages, async (req, res) => {
           project_category = @project_category,
           github_url = @github_url,
           site_url = @site_url,
+          is_active = @is_active,
           updated_at = SYSUTCDATETIME()
-      OUTPUT INSERTED.id, INSERTED.title, INSERTED.description, INSERTED.app_type, INSERTED.tech_tags, INSERTED.project_category, INSERTED.github_url, INSERTED.site_url,
+      OUTPUT INSERTED.id, INSERTED.title, INSERTED.description, INSERTED.app_type, INSERTED.tech_tags, INSERTED.project_category, INSERTED.github_url, INSERTED.site_url, INSERTED.is_active,
              CASE WHEN INSERTED.thumbnail_image IS NOT NULL THEN 1 ELSE 0 END AS has_image,
              INSERTED.created_at, INSERTED.updated_at
       WHERE id = @id
@@ -545,6 +646,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const pool = await getPool();
     await ensureImageTable(pool);
+    await ensureProjectColumns(pool);
 
     await pool
       .request()
