@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
 import ProjectCard from '../components/ProjectCard';
 
-const APP_TYPES = ['Pro-Code Apps', 'Model-Driven Apps', 'Canvas Apps', 'Prototype Apps'];
-
-function getAppTypeLabel(appType) {
+function getAppTypeLabel(appType, isMobile = false) {
+  if (isMobile) {
+    switch (appType) {
+      case 'Pro-Code Apps': return 'Code';
+      case 'Model-Driven Apps': return 'Model-Driven';
+      case 'Prototype Apps': return 'Prototype';
+      default: return appType;
+    }
+  }
   return appType === 'Pro-Code Apps' ? 'Code Apps' : appType;
 }
 
@@ -41,7 +47,22 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [draggedId, setDraggedId] = useState(null);
-  const [selectedTab, setSelectedTab] = useState(APP_TYPES[0]);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [selectedTab, setSelectedTab] = useState('Pro-Code Apps');
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (mobile && selectedTab === 'Canvas Apps') {
+        setSelectedTab('Pro-Code Apps');
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [selectedTab]);
+
+  const APP_TYPES = isMobile ? ['Pro-Code Apps', 'Model-Driven Apps', 'Prototype Apps'] : ['Pro-Code Apps', 'Model-Driven Apps', 'Canvas Apps', 'Prototype Apps'];
 
   useEffect(() => {
     fetch('/api/projects')
@@ -129,14 +150,14 @@ export default function Home() {
                 : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
             }`}
           >
-            {getAppTypeLabel(tab)}
+            {getAppTypeLabel(tab, isMobile)}
           </button>
         ))}
       </div>
 
       {filteredProjects.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-24 text-gray-400 dark:text-gray-500">
-          <p className="text-lg font-medium">No projects in {getAppTypeLabel(selectedTab)}</p>
+          <p className="text-lg font-medium">No projects in {getAppTypeLabel(selectedTab, isMobile)}</p>
           <p className="text-sm">Add projects in Admin and assign this app type.</p>
         </div>
       ) : (
